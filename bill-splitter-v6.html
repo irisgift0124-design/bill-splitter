@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>分帳 App</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --sub: #6e6e73;
+  --border: #d2d2d7; --blue: #007aff; --green: #34c759; --red: #ff3b30; --radius: 12px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.container { max-width: 480px; margin: 0 auto; padding: 16px; }
+.header { text-align: center; padding: 24px 0 16px; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header p { font-size: 14px; color: var(--sub); margin-top: 4px; }
+.steps { display: flex; justify-content: center; gap: 6px; margin-bottom: 20px; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+.step-dot.active { background: var(--blue); }
+.card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.field-label { font-size: 12px; color: var(--sub); margin-bottom: 6px; display: block; }
+.field-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); outline: none; }
+.field-input:focus { border-color: var(--blue); }
+.field-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.field-row select { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
+.btn { display: block; width: 100%; padding: 13px; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 500; cursor: pointer; text-align: center; transition: opacity 0.15s; }
+.btn:active { opacity: 0.75; }
+.btn-primary { background: var(--blue); color: white; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn + .btn { margin-top: 8px; }
+.btn:disabled { opacity: 0.4; pointer-events: none; }
+.upload-area { border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 24px 16px; text-align: center; cursor: pointer; background: var(--bg); }
+.upload-area p { font-size: 14px; color: var(--sub); }
+.upload-area input { display: none; }
+.thumb-list { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.thumb-item { position: relative; width: 72px; height: 72px; }
+.thumb-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+.thumb-del { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: var(--red); color: white; border: none; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.thumb-status { position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 10px; text-align: center; border-radius: 4px; padding: 1px; }
+.thumb-status.done { background: rgba(52,199,89,0.85); color: white; }
+.thumb-status.loading { background: rgba(0,122,255,0.75); color: white; }
+.thumb-status.error { background: rgba(255,59,48,0.85); color: white; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--sub); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.item-list { margin-bottom: 12px; }
+.item-row { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--bg); }
+.item-row:last-child { border-bottom: none; }
+.item-check { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--blue); cursor: pointer; }
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-src { font-size: 11px; color: var(--sub); }
+.item-price { font-size: 15px; font-weight: 500; white-space: nowrap; }
+.item-del { background: none; border: none; color: var(--red); font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+.add-row { display: flex; gap: 6px; margin-top: 10px; }
+.add-row input { flex: 1; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
+.add-row input.price { width: 80px; flex: none; }
+.add-row button { padding: 9px 14px; border: none; border-radius: 8px; background: var(--blue); color: white; font-size: 14px; cursor: pointer; }
+.surcharge-row { display: flex; align-items: center; gap: 8px; }
+.surcharge-row input { width: 72px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; text-align: center; background: var(--bg); color: var(--text); }
+.surcharge-tag { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e3f2fd; color: var(--blue); margin-left: 6px; }
+.surcharge-note { font-size: 12px; color: var(--sub); margin-top: 4px; }
+.result-row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; }
+.result-row.total { font-size: 17px; font-weight: 600; border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; }
+.result-row .muted { color: var(--sub); }
+.share-msg { width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.6; background: var(--bg); color: var(--text); resize: none; font-family: inherit; margin-bottom: 10px; }
+.share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.share-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; text-decoration: none; }
+.share-btn:active { background: var(--bg); }
+.friend-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; background: var(--bg); color: var(--text); margin-bottom: 12px; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1d1d1f; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 999; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.panel { display: none; }
+.panel.active { display: block; }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--blue); border-radius: 2px; transition: width 0.3s; }
+#resultCanvas { width: 100%; border-radius: 8px; display: block; margin-bottom: 12px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header"><h1>🍽 分帳</h1><p>支援多張帳單合併辨識</p></div>
+  <div class="steps">
+    <div class="step-dot active" id="d1"></div>
+    <div class="step-dot" id="d2"></div>
+    <div class="step-dot" id="d3"></div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="panel active" id="p1">
+    <div class="card">
+      <label class="field-label">Gemini API Key</label>
+      <input class="field-input" type="password" id="apiKey" placeholder="貼上你的 API Key" oninput="saveKey()">
+      <div style="margin-top:6px">
+        <a href="https://aistudio.google.com/app/apikey" style="font-size:12px;color:var(--blue)">取得 API Key ↗</a>
+        <span style="font-size:12px;color:var(--sub);margin-left:8px">只存在本機</span>
+      </div>
+    </div>
+    <div class="card">
+      <label class="field-label">幣別</label>
+      <div class="field-row">
+        <select id="currency">
+          <option value="AUD">AUD $</option>
+          <option value="TWD">NT$</option>
+          <option value="USD">USD $</option>
+          <option value="HKD">HK$</option>
+          <option value="SGD">SGD $</option>
+        </select>
+      </div>
+      <div class="thumb-list" id="thumbList"></div>
+      <div class="upload-area" id="uploadArea">
+        <div style="font-size:32px;margin-bottom:6px">📷</div>
+        <p>點擊上傳帳單截圖<br><span style="font-size:12px">可上傳多張</span></p>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+      </div>
+    </div>
+    <div id="progressWrap" style="display:none" class="card">
+      <div class="section-title" id="progressLabel">辨識中...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeAll()" disabled>AI 辨識所有帳單</button>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="panel" id="p2">
+    <div class="card">
+      <div class="section-title">勾選你的餐點</div>
+      <div class="item-list" id="itemList"></div>
+      <div class="add-row">
+        <input type="text" id="newName" placeholder="手動新增品項">
+        <input type="number" id="newPrice" placeholder="金額" class="price">
+        <button onclick="addItem()">新增</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">
+        信用卡 Surcharge (%)
+        <span class="surcharge-tag" id="surchargeTag" style="display:none">AI 自動讀取</span>
+      </div>
+      <div class="surcharge-row">
+        <input type="number" id="surcharge" value="0" step="0.1" min="0">
+        <span style="color:var(--sub)">%</span>
+      </div>
+      <div class="surcharge-note" id="surchargeNote"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">朋友名字（選填）</div>
+      <input class="friend-input" type="text" id="friendName" placeholder="例如：小明">
+    </div>
+    <button class="btn btn-primary" onclick="goStep3()">計算我的金額 →</button>
+    <button class="btn btn-secondary" onclick="goStep1()">← 重新上傳</button>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="panel" id="p3">
+    <div class="card" id="resultCard"></div>
+    <div class="card">
+      <div class="section-title">結算圖</div>
+      <canvas id="resultCanvas"></canvas>
+      <button class="btn btn-primary" id="shareImgBtn" onclick="shareImage()" style="margin-bottom:8px">📤 分享結算圖</button>
+      <button class="btn btn-secondary" id="saveImgBtn" onclick="downloadImage()">💾 儲存到相簿</button>
+    </div>
+    <div class="card">
+      <div class="section-title">或傳文字</div>
+      <textarea class="share-msg" id="shareMsg" readonly></textarea>
+      <div class="share-grid">
+        <button class="share-btn" onclick="copyMsg()">📋 複製</button>
+        <button class="share-btn" onclick="shareWhatsApp()">💬 WhatsApp</button>
+        <a class="share-btn" href="#" onclick="shareLine(event)">🟢 LINE</a>
+        <button class="share-btn" onclick="shareSMS()">📱 iMessage</button>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="goStep2()">← 修改選項</button>
+    <button class="btn btn-secondary" onclick="restart()" style="margin-top:8px">重新開始</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const currencySymbols = { AUD: 'AUD $', TWD: 'NT$', USD: 'USD $', HKD: 'HK$', SGD: 'SGD $' };
+let images = [];
+let billItems = [];
+
+try { const k = localStorage.getItem('gemini_key'); if (k) document.getElementById('apiKey').value = k; } catch(e) {}
+function saveKey() { try { localStorage.setItem('gemini_key', document.getElementById('apiKey').value); } catch(e) {} }
+
+document.getElementById('uploadArea').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      images.push({ base64: ev.target.result.split(',')[1], mime: file.type || 'image/jpeg', dataUrl: ev.target.result, status: 'pending' });
+      renderThumbs();
+      document.getElementById('analyzeBtn').disabled = false;
+    };
+    reader.readAsDataURL(file);
+  });
+  this.value = '';
+});
+
+function renderThumbs() {
+  const list = document.getElementById('thumbList');
+  list.innerHTML = '';
+  images.forEach((img, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb-item';
+    const labels = { done: '✓ 完成', loading: '辨識中', error: '✕ 失敗' };
+    const label = labels[img.status] || '';
+    div.innerHTML = `
+      <img src="${img.dataUrl}">
+      ${label ? `<div class="thumb-status ${img.status}">${label}</div>` : ''}
+      ${img.status !== 'loading' ? `<button class="thumb-del" onclick="removeImg(${i})">×</button>` : ''}
+    `;
+    list.appendChild(div);
+  });
+  document.getElementById('analyzeBtn').disabled = images.length === 0;
+}
+
+function removeImg(i) { images.splice(i, 1); renderThumbs(); }
+
+async function callGemini(base64, mime, prompt) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ inline_data: { mime_type: mime, data: base64 } }, { text: prompt }] }],
+          generationConfig: { temperature: 0.1 }
+        })
+      });
+      const data = await resp.json();
+      if (data.error) {
+        if ((data.error.code === 503 || data.error.code === 429) && attempt < 2) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 4000));
+          continue;
+        }
+        throw new Error(data.error.message);
+      }
+      return data.candidates[0].content.parts[0].text;
+    } catch(e) {
+      if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 4000)); continue; }
+      throw e;
+    }
+  }
+}
+
+async function analyzeAll() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { showToast('請先填入 Gemini API Key'); return; }
+  if (!images.length) { showToast('請先上傳圖片'); return; }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('progressWrap').style.display = 'block';
+  billItems = [];
+  let surchargeFound = null, surchargeNoteText = '';
+  const currency = document.getElementById('currency').value;
+
+  const prompt = `You are a restaurant bill OCR assistant. Analyze this receipt image.
+Return ONLY valid JSON, no markdown, no explanation:
+{"items":[{"name":"Item name","price":12.50,"qty":1}],"surcharge_percent":null,"surcharge_note":""}
+Rules:
+- Extract food/drink line items only
+- price = total for that line (unit price × qty)
+- Do NOT include tax, service charge, subtotal, total rows
+- Currency: ${currency}
+- surcharge_percent: numeric % if credit card surcharge found on bill, else null
+- surcharge_note: brief description e.g. "EFTPOS 1.4%"
+- If image is not a bill return {"items":[],"surcharge_percent":null,"surcharge_note":""}`;
+
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    img.status = 'loading';
+    renderThumbs();
+    document.getElementById('progressLabel').textContent = `辨識第 ${i+1} / ${images.length} 張...`;
+    document.getElementById('progressFill').style.width = `${(i / images.length) * 100}%`;
+
+    try {
+      const text = await callGemini(img.base64, img.mime, prompt);
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+      const newItems = (parsed.items || []).map((item, j) => ({
+        ...item, id: billItems.length + j, checked: false,
+        source: images.length > 1 ? `帳單 ${i+1}` : ''
+      }));
+      billItems.push(...newItems);
+      if (parsed.surcharge_percent != null && surchargeFound === null) {
+        surchargeFound = parsed.surcharge_percent;
+        surchargeNoteText = parsed.surcharge_note || '';
+      }
+      img.status = 'done';
+    } catch(e) {
+      img.status = 'error';
+      showToast(`第 ${i+1} 張失敗：${e.message}`);
+    }
+    renderThumbs();
+  }
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = `完成！共 ${billItems.length} 個品項`;
+
+  if (surchargeFound !== null) {
+    document.getElementById('surcharge').value = surchargeFound;
+    document.getElementById('surchargeTag').style.display = 'inline';
+    document.getElementById('surchargeNote').textContent = surchargeNoteText;
+  } else {
+    document.getElementById('surcharge').value = 0;
+    document.getElementById('surchargeTag').style.display = 'none';
+    document.getElementById('surchargeNote').textContent = '帳單未發現 surcharge，可手動輸入';
+  }
+
+  setTimeout(() => { setStep(2); renderItems(); }, 600);
+}
+
+function renderItems() {
+  const sym = currencySymbols[document.getElementById('currency').value];
+  const list = document.getElementById('itemList');
+  list.innerHTML = '';
+  if (!billItems.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--sub);padding:8px 0">尚無品項</p>';
+    return;
+  }
+  billItems.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="checkbox" class="item-check" ${item.checked ? 'checked' : ''} onchange="toggle(${item.id})">
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        ${item.source || item.qty > 1 ? `<div class="item-src">${[item.source, item.qty > 1 ? `×${item.qty}` : ''].filter(Boolean).join(' · ')}</div>` : ''}
+      </div>
+      <span class="item-price">${sym}${item.price.toFixed(2)}</span>
+      <button class="item-del" onclick="removeItem(${item.id})">×</button>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function setStep(n) {
+  ['p1','p2','p3'].forEach((id,i) => document.getElementById(id).classList.toggle('active', i+1===n));
+  ['d1','d2','d3'].forEach((id,i) => document.getElementById(id).classList.toggle('active', i+1===n));
+}
+function goStep1() { setStep(1); }
+function goStep2() { setStep(2); renderItems(); }
+function toggle(id) { const i = billItems.find(x => x.id===id); if(i) i.checked = !i.checked; }
+function removeItem(id) { billItems = billItems.filter(x => x.id!==id); renderItems(); }
+function addItem() {
+  const name = document.getElementById('newName').value.trim();
+  const price = parseFloat(document.getElementById('newPrice').value);
+  if (!name || isNaN(price)) { showToast('請填寫名稱和金額'); return; }
+  const newId = billItems.length ? Math.max(...billItems.map(i=>i.id))+1 : 0;
+  billItems.push({ id: newId, name, price, qty: 1, checked: true, source: '' });
+  document.getElementById('newName').value = '';
+  document.getElementById('newPrice').value = '';
+  renderItems();
+}
+
+function goStep3() {
+  const selected = billItems.filter(i => i.checked);
+  if (!selected.length) { showToast('請先勾選你的餐點'); return; }
+  const sym = currencySymbols[document.getElementById('currency').value];
+  const surcharge = parseFloat(document.getElementById('surcharge').value) || 0;
+  const subtotal = selected.reduce((s,i) => s + i.price, 0);
+  const fee = subtotal * surcharge / 100;
+  const total = subtotal + fee;
+  const name = document.getElementById('friendName').value.trim();
+
+  document.getElementById('resultCard').innerHTML = `
+    ${selected.map(i => `<div class="result-row"><span>${i.name}${i.qty>1?` ×${i.qty}`:''}</span><span>${sym}${i.price.toFixed(2)}</span></div>`).join('')}
+    <div class="result-row"><span class="muted">小計</span><span class="muted">${sym}${subtotal.toFixed(2)}</span></div>
+    ${surcharge > 0 ? `<div class="result-row"><span class="muted">Surcharge (${surcharge}%)</span><span class="muted">${sym}${fee.toFixed(2)}</span></div>` : ''}
+    <div class="result-row total"><span>你要付</span><span style="color:#007aff">${sym}${total.toFixed(2)}</span></div>
+  `;
+
+  const lines = selected.map(i => `• ${i.name}${i.qty>1?` ×${i.qty}`:''} ${sym}${i.price.toFixed(2)}`).join('\n');
+  const surchargeNote = surcharge > 0 ? `\nSurcharge (${surcharge}%): ${sym}${fee.toFixed(2)}` : '';
+  const prefix = name ? `Hi ${name}！` : 'Hi！';
+  document.getElementById('shareMsg').value = `${prefix}\n今天吃飯你的部分：\n${lines}${surchargeNote}\n總共：${sym}${total.toFixed(2)}\n謝謝 🙏`;
+
+  setStep(3);
+  generateCanvas(selected, sym, subtotal, fee, surcharge, total, name);
+}
+
+async function generateCanvas(selected, sym, subtotal, fee, surcharge, total, friendName) {
+  const canvas = document.getElementById('resultCanvas');
+  const scale = 2;
+  const PAD = 20;
+
+  // Load all images first
+  const loadedImgs = await Promise.all(images.map(img => new Promise(resolve => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => resolve(null);
+    el.src = img.dataUrl;
+  })));
+
+  // Canvas dimensions
+  // Left: receipt images stacked, Right: detail panel
+  const CANVAS_W = 800;
+  const LEFT_W = Math.floor(CANVAS_W * 0.45);
+  const RIGHT_W = CANVAS_W - LEFT_W;
+
+  const HEADER_H = 56;
+  const ROW_H = 36;
+  const FOOTER_ROWS = surcharge > 0 ? 3 : 2;
+  const DETAIL_H = HEADER_H + selected.length * ROW_H + FOOTER_ROWS * ROW_H + PAD * 2 + 20;
+
+  // Left: images stacked
+  const IMG_H_EACH = Math.max(120, Math.floor((DETAIL_H - PAD) / Math.max(images.length, 1)));
+  const LEFT_H = images.length * IMG_H_EACH + (images.length - 1) * 6 + PAD * 2;
+  const CANVAS_H = Math.max(DETAIL_H, LEFT_H) + PAD;
+
+  canvas.width = CANVAS_W * scale;
+  canvas.height = CANVAS_H * scale;
+  canvas.style.height = CANVAS_H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  // Background
+  ctx.fillStyle = '#f2f2f7';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // LEFT: receipt images
+  let imgY = PAD;
+  loadedImgs.forEach((el, i) => {
+    if (!el) return;
+    const iw = LEFT_W - PAD;
+    const ih = IMG_H_EACH;
+    const ix = PAD / 2;
+    const iy = imgY;
+
+    // White card
+    ctx.fillStyle = '#fff';
+    roundRect(ctx, ix, iy, iw, ih, 10);
+    ctx.fill();
+
+    // Clip and draw image
+    ctx.save();
+    roundRect(ctx, ix, iy, iw, ih, 10);
+    ctx.clip();
+    const ratio = Math.min(iw / el.width, ih / el.height);
+    const dw = el.width * ratio, dh = el.height * ratio;
+    ctx.drawImage(el, ix + (iw - dw) / 2, iy + (ih - dh) / 2, dw, dh);
+    ctx.restore();
+
+    // Label for multiple images
+    if (images.length > 1) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      roundRect(ctx, ix + 6, iy + 6, 48, 20, 4);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `600 11px -apple-system, sans-serif`;
+      ctx.fillText(`帳單 ${i+1}`, ix + 10, iy + 19);
+    }
+
+    imgY += ih + 6;
+  });
+
+  // RIGHT: detail panel
+  const RX = LEFT_W + 4;
+  const RW = RIGHT_W - 8;
+
+  // Header gradient
+  const grad = ctx.createLinearGradient(RX, 0, RX + RW, HEADER_H + PAD);
+  grad.addColorStop(0, '#007aff');
+  grad.addColorStop(1, '#5856d6');
+  ctx.fillStyle = grad;
+  roundRect(ctx, RX, PAD, RW, CANVAS_H - PAD * 2, 12);
+  ctx.fill();
+
+  // Header text
+  const HY = PAD + 24;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = `500 12px -apple-system, sans-serif`;
+  ctx.fillText('🍽 分帳明細', RX + PAD, HY);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 22px -apple-system, sans-serif`;
+  const totalTxt = `${sym}${total.toFixed(2)}`;
+  ctx.fillText(totalTxt, RX + PAD, HY + 28);
+
+  if (friendName) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `400 12px -apple-system, sans-serif`;
+    ctx.fillText(`給 ${friendName}`, RX + PAD, HY + 44);
+  }
+
+  // Divider
+  const divY = PAD + HEADER_H + (friendName ? 20 : 0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(RX + PAD, divY);
+  ctx.lineTo(RX + RW - PAD, divY);
+  ctx.stroke();
+
+  // Items
+  let itemY = divY + 14;
+  selected.forEach((item, idx) => {
+    if (idx % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.07)';
+      ctx.fillRect(RX, itemY - 14, RW, ROW_H);
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = `400 12px -apple-system, sans-serif`;
+    let label = item.name + (item.qty > 1 ? ` ×${item.qty}` : '');
+    const maxW = RW - PAD * 2 - 70;
+    while (ctx.measureText(label).width > maxW && label.length > 4) label = label.slice(0, -1);
+    ctx.fillText(label, RX + PAD, itemY);
+
+    ctx.font = `500 12px -apple-system, sans-serif`;
+    const pTxt = `${sym}${item.price.toFixed(2)}`;
+    ctx.fillText(pTxt, RX + RW - PAD - ctx.measureText(pTxt).width, itemY);
+
+    itemY += ROW_H;
+  });
+
+  // Footer divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.moveTo(RX + PAD, itemY);
+  ctx.lineTo(RX + RW - PAD, itemY);
+  ctx.stroke();
+  itemY += 14;
+
+  // Subtotal
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = `400 12px -apple-system, sans-serif`;
+  ctx.fillText('小計', RX + PAD, itemY);
+  const subTxt = `${sym}${subtotal.toFixed(2)}`;
+  ctx.fillText(subTxt, RX + RW - PAD - ctx.measureText(subTxt).width, itemY);
+  itemY += ROW_H;
+
+  if (surcharge > 0) {
+    ctx.fillText(`Surcharge (${surcharge}%)`, RX + PAD, itemY);
+    const feeTxt = `${sym}${fee.toFixed(2)}`;
+    ctx.fillText(feeTxt, RX + RW - PAD - ctx.measureText(feeTxt).width, itemY);
+    itemY += ROW_H;
+  }
+
+  // Total
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 15px -apple-system, sans-serif`;
+  ctx.fillText('總計', RX + PAD, itemY);
+  ctx.fillText(totalTxt, RX + RW - PAD - ctx.measureText(totalTxt).width, itemY);
+
+  // Date bottom right
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = `400 10px -apple-system, sans-serif`;
+  const dateStr = new Date().toLocaleDateString('zh-TW');
+  ctx.fillText(dateStr, RX + RW - PAD - ctx.measureText(dateStr).width, CANVAS_H - PAD - 4);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+async function getCanvasBlob() {
+  return new Promise(resolve => document.getElementById('resultCanvas').toBlob(resolve, 'image/png'));
+}
+
+async function shareImage() {
+  if (navigator.share && navigator.canShare) {
+    try {
+      const blob = await getCanvasBlob();
+      const file = new File([blob], '分帳.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: '分帳明細' });
+        return;
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') console.log('Share failed:', e);
+    }
+  }
+  // Fallback: download
+  downloadImage();
+  showToast('已儲存，請手動傳給朋友');
+}
+
+function downloadImage() {
+  const canvas = document.getElementById('resultCanvas');
+  const link = document.createElement('a');
+  link.download = `分帳_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('圖片已儲存！');
+}
+
+function copyMsg() {
+  const msg = document.getElementById('shareMsg').value;
+  navigator.clipboard.writeText(msg).then(() => showToast('已複製！')).catch(() => {
+    document.getElementById('shareMsg').select(); document.execCommand('copy'); showToast('已複製！');
+  });
+}
+function shareWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(document.getElementById('shareMsg').value)}`); }
+function shareLine(e) { e.preventDefault(); window.open(`https://line.me/R/msg/text/?${encodeURIComponent(document.getElementById('shareMsg').value)}`); }
+function shareSMS() { window.location.href = `sms:?&body=${encodeURIComponent(document.getElementById('shareMsg').value)}`; }
+
+function restart() {
+  images = []; billItems = [];
+  document.getElementById('thumbList').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('friendName').value = '';
+  document.getElementById('surcharge').value = 0;
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('progressWrap').style.display = 'none';
+  setStep(1);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

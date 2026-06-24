@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>分帳 App</title>
 <style>
-  
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --sub: #6e6e73;
@@ -230,17 +229,34 @@ async function callGemini(base64, mime, prompt) {
           generationConfig: { temperature: 0.1 }
         })
       });
+      
+      // 檢查 HTTP 狀態碼
+      if (resp.status === 503 || resp.status === 429) {
+        if (attempt < 2) {
+          const waitTime = (attempt + 1) * 6000; // 6秒、12秒、18秒
+          await new Promise(r => setTimeout(r, waitTime));
+          continue;
+        } else {
+          throw new Error(`API 服務繁忙 (${resp.status})，請稍後重試`);
+        }
+      }
+      
       const data = await resp.json();
       if (data.error) {
         if ((data.error.code === 503 || data.error.code === 429) && attempt < 2) {
-          await new Promise(r => setTimeout(r, (attempt + 1) * 4000));
+          const waitTime = (attempt + 1) * 6000;
+          await new Promise(r => setTimeout(r, waitTime));
           continue;
         }
         throw new Error(data.error.message);
       }
       return data.candidates[0].content.parts[0].text;
     } catch(e) {
-      if (attempt < 2) { await new Promise(r => setTimeout(r, (attempt + 1) * 4000)); continue; }
+      if (attempt < 2) { 
+        const waitTime = (attempt + 1) * 6000;
+        await new Promise(r => setTimeout(r, waitTime)); 
+        continue; 
+      }
       throw e;
     }
   }

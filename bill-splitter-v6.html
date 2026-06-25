@@ -84,8 +84,8 @@ canvas { width: 100%; border-radius: 8px; border: 1px solid var(--border); margi
     <div class="card">
       <div class="section-title">結算圖（每張帳單一張圖）</div>
       <div id="canvasContainer"></div>
-      <button class="btn btn-primary" id="downloadAllBtn" onclick="downloadAllImages()">💾 下載所有結算圖</button>
-      <p style="font-size:12px;color:var(--sub);text-align:center;margin-top:8px">下載後可分享給朋友</p>
+      <button class="btn btn-primary" id="shareAllBtn" onclick="shareAllImages()">📤 傳送結算圖</button>
+      <p style="font-size:12px;color:var(--sub);text-align:center;margin-top:8px">可直接分享到 LINE、WhatsApp、iMessage</p>
     </div>
     <button class="btn btn-secondary" onclick="goStep2()">← 修改選項</button>
     <button class="btn btn-secondary" onclick="restart()" style="margin-top:8px">重新開始</button>
@@ -294,16 +294,34 @@ async function generateCanvases(selected, sym, subtotal, fee, surcharge, total) 
     container.appendChild(div);
   }
 }
-async function downloadAllImages() {
+async function shareAllImages() {
   const canvases = document.querySelectorAll('#canvasContainer canvas');
   if (!canvases.length) { showToast('無結算圖'); return; }
-  for (let i = 0; i < canvases.length; i++) {
-    const link = document.createElement('a');
-    link.download = `分帳_帳單${i + 1}_${new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.png`;
-    link.href = canvases[i].toDataURL('image/png');
-    setTimeout(() => link.click(), i * 200);
+  
+  try {
+    const files = [];
+    for (let i = 0; i < canvases.length; i++) {
+      const blob = await new Promise(resolve => canvases[i].toBlob(resolve, 'image/png'));
+      const filename = `分帳_帳單${i + 1}_${new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.png`;
+      files.push(new File([blob], filename, { type: 'image/png' }));
+    }
+    
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: files })) {
+      await navigator.share({ files: files, title: '分帳結算圖' });
+      showToast('已傳送');
+    } else {
+      // Fallback: download if share not supported
+      files.forEach((file, i) => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file);
+        link.download = file.name;
+        setTimeout(() => link.click(), i * 200);
+      });
+      showToast(`已下載 ${files.length} 張圖片`);
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') showToast(`傳送失敗：${e.message}`);
   }
-  showToast(`已下載 ${canvases.length} 張圖片`);
 }
 function setStep(n) { ['p1', 'p2', 'p3'].forEach((id, i) => document.getElementById(id).classList.toggle('active', i + 1 === n)); }
 function restart() { billsCollection = []; currentBillImage = null; document.getElementById('fileInput').value = ''; renderCurrentBillPreview(); document.getElementById('analyzeBtn').disabled = true; setStep(1); }
